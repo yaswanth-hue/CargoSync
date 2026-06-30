@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  COORDINATOR
+  DEPT_USER
+  DRIVER
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CONSOLIDATED
+}
+
+enum TripStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model User {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  name       String
+  role       Role      @default(DEPT_USER)
+  department String?
+  created_at DateTime  @default(now())
+  requests   Request[]
+}
+
+model Request {
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  destination String
+  weight_kg   Float         @default(0)
+  priority    Priority      @default(MEDIUM)
+  required_at DateTime
+  status      RequestStatus @default(PENDING)
+  created_at  DateTime      @default(now())
+  user_id     String
+  user        User          @relation(fields: [user_id], references: [id])
+  trip_id     String?
+  trip        Trip?         @relation(fields: [trip_id], references: [id])
+}
+
+model Vehicle {
+  id           String        @id @default(uuid())
+  name         String
+  plate        String        @unique
+  capacity_kg  Float
+  status       VehicleStatus @default(AVAILABLE)
+  rate_per_km  Float         @default(10)
+  created_at   DateTime      @default(now())
+  trips        Trip[]
+}
+
+model Trip {
+  id           String     @id @default(uuid())
+  destination  String
+  status       TripStatus @default(PLANNED)
+  scheduled_at DateTime
+  created_at   DateTime   @default(now())
+  vehicle_id   String?
+  vehicle      Vehicle?   @relation(fields: [vehicle_id], references: [id])
+  requests     Request[]
+  waypoints    Waypoint[]
+  gps_logs     GpsLog[]
+}
+
+model Waypoint {
+  id      String @id @default(uuid())
+  label   String
+  order   Int
+  trip_id String
+  trip    Trip   @relation(fields: [trip_id], references: [id])
+}
+
+model GpsLog {
+  id        String   @id @default(uuid())
+  trip_id   String
+  lat       Float
+  lng       Float
+  timestamp DateTime @default(now())
+  trip      Trip     @relation(fields: [trip_id], references: [id])
+}
