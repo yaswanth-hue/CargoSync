@@ -15,10 +15,9 @@ export default async function DriverTripsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Get today's and upcoming trips with any assigned vehicle
   const trips = await prisma.trip.findMany({
-    where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } },
-    orderBy: { scheduled_at: 'asc' },
+    where: { status: { in: ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] } },
+    orderBy: { scheduled_at: 'desc' },
     include: {
       vehicle: true,
       requests: { select: { id: true, title: true, weight_kg: true, destination: true } },
@@ -29,13 +28,16 @@ export default async function DriverTripsPage() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const todayTrips = trips.filter((t) => {
+  const activeTrips = trips.filter((t) => ['PLANNED', 'IN_PROGRESS'].includes(t.status))
+  const completedTrips = trips.filter((t) => ['COMPLETED', 'CANCELLED'].includes(t.status))
+
+  const todayTrips = activeTrips.filter((t) => {
     const d = new Date(t.scheduled_at)
     d.setHours(0, 0, 0, 0)
     return d.getTime() === today.getTime()
   })
 
-  const upcomingTrips = trips.filter((t) => {
+  const upcomingTrips = activeTrips.filter((t) => {
     const d = new Date(t.scheduled_at)
     d.setHours(0, 0, 0, 0)
     return d.getTime() > today.getTime()
@@ -50,6 +52,7 @@ export default async function DriverTripsPage() {
             <div>
               <p className="text-white font-medium">{trip.destination}</p>
               <p className="text-xs text-gray-500 mt-0.5">
+                {new Date(trip.scheduled_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{' '}
                 {new Date(trip.scheduled_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
@@ -94,9 +97,18 @@ export default async function DriverTripsPage() {
         </div>
       )}
 
-      {trips.length === 0 && (
+      {activeTrips.length === 0 && completedTrips.length === 0 && (
         <div className="text-center py-16 text-gray-600 text-sm">
-          No active trips assigned.
+          No trips assigned yet.
+        </div>
+      )}
+
+      {completedTrips.length > 0 && (
+        <div className="mb-6">
+          <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Completed & cancelled</p>
+          <div className="space-y-3">
+            {completedTrips.map((t) => <TripCard key={t.id} trip={t} />)}
+          </div>
         </div>
       )}
     </div>

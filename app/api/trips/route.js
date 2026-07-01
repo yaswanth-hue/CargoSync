@@ -11,11 +11,19 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const dbUser = await prisma.user.findUnique({ where: { email: user.email } })
+  if (!['ADMIN', 'COORDINATOR'].includes(dbUser?.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const trips = await prisma.trip.findMany({
     orderBy: { scheduled_at: 'desc' },
     include: {
       vehicle: true,
-      requests: { include: { user: { select: { name: true, department: true } } } },
+      driver: { select: { id: true, name: true } },
+      requests: {
+        include: { user: { select: { name: true, department: true } } },
+      },
       waypoints: { orderBy: { order: 'asc' } },
     },
   })
@@ -46,21 +54,19 @@ export async function POST() {
   const createdTrips = []
 
   for (const group of groups) {
-    // Fixed: allocateVehicle(vehicles, totalWeight)
     const vehicle = allocateVehicle(vehicles, group.total_weight_kg)
-    // Fixed: orderWaypoints takes array of request objects, sorts by priority + required_at
     const orderedRequests = orderWaypoints(group.requests)
 
     const trip = await prisma.trip.create({
       data: {
         destination: group.destination,
-        scheduled_at: new Date(group.required_at),
+        scheduled_at: new Date(group.requests[0].required_at),
         vehicle_id: vehicle?.id ?? null,
         requests: { connect: group.requests.map((r) => ({ id: r.id })) },
         waypoints: {
           create: orderedRequests.map((r, i) => ({
             label: r.destination,
-            order: i,
+            order: i + 1,
           })),
         },
       },

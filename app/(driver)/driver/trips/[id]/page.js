@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { calculateDistanceFromTrail, calculateTripCost } from '@/lib/engine/cost'
 import Link from 'next/link'
 
 const statusColors = {
@@ -16,21 +17,31 @@ export default async function DriverTripDetailPage({ params }) {
   if (!user) redirect('/login')
 
   const { id } = await params
-  const trip = await prisma.trip.findUnique({
-    where: { id },
-    include: {
-      vehicle: true,
-      waypoints: { orderBy: { order: 'asc' } },
-      requests: {
-        include: { user: { select: { name: true, department: true } } },
-        orderBy: { priority: 'desc' },
+  const [trip, gpsLogs] = await Promise.all([
+    prisma.trip.findUnique({
+      where: { id },
+      include: {
+        vehicle: true,
+        waypoints: { orderBy: { order: 'asc' } },
+        requests: {
+          include: { user: { select: { name: true, department: true } } },
+          orderBy: { priority: 'desc' },
+        },
       },
-    },
-  })
+    }),
+    prisma.gpsLog.findMany({
+      where: { trip_id: id },
+      orderBy: { timestamp: 'asc' },
+    }),
+  ])
 
   if (!trip) notFound()
 
   const totalWeight = trip.requests.reduce((s, r) => s + r.weight_kg, 0)
+  const distanceKm = calculateDistanceFromTrail(gpsLogs)
+  const ratePerKm = trip.vehicle?.rate_per_km ?? 10
+  const earnings = calculateTripCost(distanceKm, ratePerKm)
+  const hasGpsData = gpsLogs.length >= 2
 
   return (
     <div>
@@ -59,6 +70,50 @@ export default async function DriverTripDetailPage({ params }) {
           <div>
             <p className="text-xs text-gray-500">Total cargo</p>
             <p className="text-white">{totalWeight.toFixed(1)} kg · {trip.requests.length} items</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Earnings panel */}
+      <div className={`rounded-xl p-4 mb-4 border ${
+        trip.status === 'COMPLETED'
+          ? 'bg-green-500/5 border-green-500/20'
+          : 'bg-gray-900 border-gray-800'
+      }`}>
+        <p className="text-xs text-gray-500 mb-3">
+          {trip.status === 'COMPLETED' ? 'Trip earnings' : 'Estimated earnings'}
+        </p>
+        <div className="flex items-end justify-between">
+          <div>
+            {hasGpsData ? (
+              <>
+                <p className="text-2xl font-semibold text-white">
+                  ₹{earnings.toLocaleString('en-IN')}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {distanceKm} km × ₹{ratePerKm}/km
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-semibold text-gray-600">—</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  {trip.status === 'PLANNED'
+                    ? 'Available once trip starts'
+                    : 'No GPS data recorded'}
+                </p>
+              </>
+            )}
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-500">Rate</p>
+            <p className="text-sm text-white">₹{ratePerKm}/km</p>
+            {hasGpsData && (
+              <>
+                <p className="text-xs text-gray-500 mt-1">GPS points</p>
+                <p className="text-sm text-white">{gpsLogs.length}</p>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -107,7 +162,9 @@ export default async function DriverTripDetailPage({ params }) {
             <div key={req.id} className="px-4 py-3 flex items-center justify-between">
               <div>
                 <p className="text-sm text-white">{req.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{req.user.name}{req.user.department ? ` · ${req.user.department}` : ''}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {req.user.name}{req.user.department ? ` · ${req.user.department}` : ''}
+                </p>
               </div>
               <p className="text-xs text-gray-400 ml-4 shrink-0">{req.weight_kg} kg</p>
             </div>

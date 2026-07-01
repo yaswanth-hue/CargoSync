@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { canApproveRequests } from '@/lib/auth/rbac'
 import { NextResponse } from 'next/server'
 
 export async function PATCH(request, { params }) {
@@ -9,18 +8,27 @@ export async function PATCH(request, { params }) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const dbUser = await prisma.user.findUnique({ where: { email: user.email } })
-  if (!dbUser || !canApproveRequests(dbUser.role)) {
+  if (!['ADMIN', 'COORDINATOR'].includes(dbUser?.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { id } = await params
-  const { action } = await request.json() // 'approve' | 'reject'
-  const status = action === 'approve' ? 'APPROVED' : 'REJECTED'
+  const { driver_id, rate_per_km } = await request.json()
 
-  const updated = await prisma.request.update({
+  const updates = {}
+  if (driver_id !== undefined) updates.driver_id = driver_id || null
+  if (rate_per_km !== undefined) {
+    await prisma.vehicle.updateMany({
+      where: { trips: { some: { id } } },
+      data: { rate_per_km: parseFloat(rate_per_km) },
+    })
+  }
+
+  const trip = await prisma.trip.update({
     where: { id },
-    data: { status },
+    data: updates,
+    include: { driver: { select: { id: true, name: true } } },
   })
 
-  return NextResponse.json(updated)
+  return NextResponse.json(trip)
 }

@@ -42,53 +42,63 @@ enum Priority {
 }
 
 model User {
-  id         String    @id @default(uuid())
-  email      String    @unique
-  name       String
-  role       Role      @default(DEPT_USER)
-  department String?
-  created_at DateTime  @default(now())
-  requests   Request[]
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  role         Role      @default(DEPT_USER)
+  department   String?
+  created_at   DateTime  @default(now())
+  requests     Request[]
+  driven_trips Trip[]    @relation("DriverTrips")
 }
 
 model Request {
-  id          String        @id @default(uuid())
-  title       String
-  description String?
-  destination String
-  weight_kg   Float         @default(0)
-  priority    Priority      @default(MEDIUM)
-  required_at DateTime
-  status      RequestStatus @default(PENDING)
-  created_at  DateTime      @default(now())
-  user_id     String
-  user        User          @relation(fields: [user_id], references: [id])
-  trip_id     String?
-  trip        Trip?         @relation(fields: [trip_id], references: [id])
+  id             String        @id @default(uuid())
+  title          String
+  description    String?
+  destination    String
+  weight_kg      Float         @default(0)
+  priority       Priority      @default(MEDIUM)
+  required_at    DateTime
+  status         RequestStatus @default(PENDING)
+  created_at     DateTime      @default(now())
+  // Internal user (optional — null for external submissions)
+  user_id        String?
+  user           User?         @relation(fields: [user_id], references: [id])
+  // External submitter contact info
+  contact_name   String?
+  contact_email  String?
+  contact_phone  String?
+  is_external    Boolean       @default(false)
+  trip_id        String?
+  trip           Trip?         @relation(fields: [trip_id], references: [id])
 }
 
 model Vehicle {
-  id           String        @id @default(uuid())
-  name         String
-  plate        String        @unique
-  capacity_kg  Float
-  status       VehicleStatus @default(AVAILABLE)
-  rate_per_km  Float         @default(10)
-  created_at   DateTime      @default(now())
-  trips        Trip[]
+  id          String        @id @default(uuid())
+  name        String
+  plate       String        @unique
+  capacity_kg Float
+  rate_per_km Float         @default(10)
+  status      VehicleStatus @default(AVAILABLE)
+  created_at  DateTime      @default(now())
+  trips       Trip[]
 }
 
 model Trip {
-  id           String     @id @default(uuid())
-  destination  String
-  status       TripStatus @default(PLANNED)
-  scheduled_at DateTime
-  created_at   DateTime   @default(now())
-  vehicle_id   String?
-  vehicle      Vehicle?   @relation(fields: [vehicle_id], references: [id])
-  requests     Request[]
-  waypoints    Waypoint[]
-  gps_logs     GpsLog[]
+  id            String     @id @default(uuid())
+  destination   String
+  status        TripStatus @default(PLANNED)
+  scheduled_at  DateTime
+  dispatched_at DateTime?
+  created_at    DateTime   @default(now())
+  vehicle_id    String?
+  vehicle       Vehicle?   @relation(fields: [vehicle_id], references: [id])
+  driver_id     String?
+  driver        User?      @relation("DriverTrips", fields: [driver_id], references: [id])
+  requests      Request[]
+  waypoints     Waypoint[]
+  gps_logs      GpsLog[]
 }
 
 model Waypoint {

@@ -3,17 +3,19 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '▦' },
-  { href: '/requests', label: 'Requests', icon: '◧' },
-  { href: '/trips', label: 'Trips', icon: '◈' },
-  { href: '/vehicles', label: 'Vehicles', icon: '⬡' },
-  { href: '/admin', label: 'Admin', icon: '◎' },
+const allNavItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: '▦', roles: ['ADMIN', 'COORDINATOR', 'DEPT_USER'] },
+  { href: '/requests', label: 'Requests', icon: '◧', roles: ['ADMIN', 'COORDINATOR', 'DEPT_USER'] },
+  { href: '/trips', label: 'Trips', icon: '◈', roles: ['ADMIN', 'COORDINATOR'] },
+  { href: '/vehicles', label: 'Vehicles', icon: '⬡', roles: ['ADMIN', 'COORDINATOR'] },
+  { href: '/admin', label: 'Admin', icon: '◎', roles: ['ADMIN'] },
 ]
 
 export default function Sidebar({ user }) {
   const pathname = usePathname()
   const router = useRouter()
+
+  const navItems = allNavItems.filter((item) => item.roles.includes(user?.role))
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -22,16 +24,16 @@ export default function Sidebar({ user }) {
   }
 
   return (
-    <aside className="w-60 min-h-screen bg-gray-950 flex flex-col border-r border-gray-800">
+    <div className="h-full w-full bg-gray-950 border-r border-gray-800 flex flex-col">
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-gray-800">
+      <div className="px-6 py-5 border-b border-gray-800 flex-shrink-0">
         <span className="text-white font-semibold text-lg tracking-tight">
           Cargo<span className="text-sky-400">Sync</span>
         </span>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="px-3 py-4 space-y-1 flex-shrink-0">
         {navItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
           return (
@@ -51,10 +53,13 @@ export default function Sidebar({ user }) {
         })}
       </nav>
 
-      {/* User info + sign out */}
-      <div className="px-4 py-4 border-t border-gray-800 space-y-2">
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* User info — always at bottom */}
+      <div className="px-4 py-4 border-t border-gray-800 flex-shrink-0 space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400 text-xs font-medium">
+          <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400 text-xs font-medium flex-shrink-0">
             {(user?.name ?? user?.email ?? 'U')[0].toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
@@ -69,6 +74,6 @@ export default function Sidebar({ user }) {
           Sign out →
         </button>
       </div>
-    </aside>
+    </div>
   )
 }

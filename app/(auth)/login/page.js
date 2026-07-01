@@ -23,7 +23,15 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/dashboard')
+    // Check role and redirect accordingly
+    const res = await fetch('/api/auth/role')
+    const { role } = await res.json()
+
+    if (role === 'DRIVER') {
+      router.push('/driver/trips')
+    } else {
+      router.push('/dashboard')
+    }
     router.refresh()
   }
 

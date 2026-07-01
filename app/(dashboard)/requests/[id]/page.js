@@ -45,9 +45,16 @@ export default async function RequestDetailPage({ params }) {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-white">{req.title}</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Submitted by {req.user.name} on{' '}
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-semibold text-white">{req.title}</h1>
+            {req.is_external && (
+              <span className="text-xs px-2 py-0.5 rounded-full border font-medium text-purple-400 bg-purple-400/10 border-purple-400/20">
+                External
+              </span>
+            )}
+          </div>
+          <p className="text-gray-500 text-sm">
+            Submitted on{' '}
             {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
@@ -56,6 +63,35 @@ export default async function RequestDetailPage({ params }) {
         </span>
       </div>
 
+      {/* External contact info */}
+      {req.is_external && (
+        <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl p-4 mb-6">
+          <p className="text-xs text-purple-400 font-medium mb-3">External submitter</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Name</p>
+              <p className="text-white">{req.contact_name ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Email</p>
+              <a href={`mailto:${req.contact_email}`} className="text-sky-400 hover:text-sky-300 transition-colors">
+                {req.contact_email ?? '—'}
+              </a>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Phone</p>
+              {req.contact_phone ? (
+                <a href={`tel:${req.contact_phone}`} className="text-sky-400 hover:text-sky-300 transition-colors">
+                  {req.contact_phone}
+                </a>
+              ) : (
+                <p className="text-gray-600 italic">Not provided</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Details grid */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         {[
@@ -63,8 +99,8 @@ export default async function RequestDetailPage({ params }) {
           { label: 'Priority', value: req.priority, className: priorityColors[req.priority] },
           { label: 'Weight', value: `${req.weight_kg} kg` },
           { label: 'Required by', value: new Date(req.required_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) },
-          { label: 'Department', value: req.user.department ?? '—' },
-          { label: 'Requester role', value: req.user.role?.toLowerCase() },
+          { label: 'Submitted by', value: req.is_external ? req.contact_name : (req.user?.name ?? '—') },
+          { label: 'Department', value: req.user?.department ?? (req.is_external ? 'External' : '—') },
         ].map(({ label, value, className }) => (
           <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
             <p className="text-xs text-gray-500 mb-1">{label}</p>
@@ -96,7 +132,6 @@ export default async function RequestDetailPage({ params }) {
         </div>
       )}
 
-      {/* Actions */}
       {canApprove && <RequestActions requestId={req.id} />}
     </div>
   )

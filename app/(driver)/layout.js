@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import SignOutButton from '@/components/layout/SignOutButton'
 
 export default async function DriverLayout({ children }) {
   const supabase = await createClient()
@@ -18,9 +19,12 @@ export default async function DriverLayout({ children }) {
           Cargo<span className="text-sky-400">Sync</span>
           <span className="text-gray-600 text-xs font-normal ml-2">Driver</span>
         </span>
-        <div className="text-right">
-          <p className="text-xs text-white">{dbUser.name}</p>
-          <p className="text-xs text-gray-500">Driver</p>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-xs text-white">{dbUser.name}</p>
+            <p className="text-xs text-gray-500">Driver</p>
+          </div>
+          <SignOutButton />
         </div>
       </header>
       <main className="max-w-lg mx-auto px-4 py-6">{children}</main>

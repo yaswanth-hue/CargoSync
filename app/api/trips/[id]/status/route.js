@@ -7,14 +7,42 @@ export async function PATCH(request, { params }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const dbUser = await prisma.user.findUnique({ where: { email: user.email } })
+  if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+  const { id } = await params
   const { status } = await request.json()
+
   const validStatuses = ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
   if (!validStatuses.includes(status)) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
   }
 
-  const trip = await prisma.trip.update({
-    where: { id: params.id },
+  const trip = await prisma.trip.findUnique({
+    where: { id },
+    select: { driver_id: true, dispatched_at: true, status: true, vehicle_id: true },
+  })
+
+  if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
+
+  // Only assigned driver or admin/coordinator can update status
+  const isAssignedDriver = dbUser.role === 'DRIVER' && trip.driver_id === dbUser.id
+  const isCoordinator = ['ADMIN', 'COORDINATOR'].includes(dbUser.role)
+
+  if (!isAssignedDriver && !isCoordinator) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // Driver can only move to IN_PROGRESS, COMPLETED, or CANCELLED
+  if (dbUser.role === 'DRIVER') {
+    const driverAllowed = ['IN_PROGRESS', 'COMPLETED', 'CANCELLED']
+    if (!driverAllowed.includes(status)) {
+      return NextResponse.json({ error: 'Drivers cannot set this status' }, { status: 403 })
+    }
+  }
+
+  const updatedTrip = await prisma.trip.update({
+    where: { id },
     data: { status },
   })
 
@@ -26,5 +54,5 @@ export async function PATCH(request, { params }) {
     })
   }
 
-  return NextResponse.json(trip)
+  return NextResponse.json(updatedTrip)
 }

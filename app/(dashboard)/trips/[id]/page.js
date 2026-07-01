@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { calcDistanceKm, calcTripCost } from '@/lib/engine/cost'
+import { calculateDistanceFromTrail, calculateTripCost } from '@/lib/engine/cost'
+import TripAssignPanel from '@/components/trips/TripAssignPanel'
+import TripMap from '@/components/trips/TripMap'
 
 const statusColors = {
   PLANNED: 'text-gray-400 bg-gray-800 border-gray-700',
@@ -15,12 +17,17 @@ export default async function TripDetailPage({ params }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const dbUser = await prisma.user.findUnique({ where: { email: user.email } })
+  const canAssign = ['ADMIN', 'COORDINATOR'].includes(dbUser?.role)
+
   const { id } = await params
+
   const [trip, gpsLogs] = await Promise.all([
     prisma.trip.findUnique({
       where: { id },
       include: {
         vehicle: true,
+        driver: { select: { id: true, name: true, email: true } },
         waypoints: { orderBy: { order: 'asc' } },
         requests: {
           include: { user: { select: { name: true, department: true } } },
@@ -37,9 +44,29 @@ export default async function TripDetailPage({ params }) {
   if (!trip) notFound()
 
   const totalWeight = trip.requests.reduce((sum, r) => sum + r.weight_kg, 0)
-  const distanceKm = calcDistanceKm(gpsLogs)
+
+  // Drivers already on another active trip (exclude current trip)
+  const busyDriverIds = await prisma.trip.findMany({
+    where: {
+      status: { in: ['PLANNED', 'IN_PROGRESS'] },
+      id: { not: id },
+      driver_id: { not: null },
+    },
+    select: { driver_id: true },
+  }).then((trips) => trips.map((t) => t.driver_id))
+
+  const drivers = await prisma.user.findMany({
+    where: {
+      role: 'DRIVER',
+      id: { notIn: busyDriverIds.length > 0 ? busyDriverIds : [''] },
+    },
+    select: { id: true, name: true, email: true },
+    orderBy: { name: 'asc' },
+  })
+
+  const distanceKm = calculateDistanceFromTrail(gpsLogs)
   const ratePerKm = trip.vehicle?.rate_per_km ?? 10
-  const totalCost = calcTripCost(distanceKm, ratePerKm)
+  const totalCost = calculateTripCost(distanceKm, ratePerKm)
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -55,8 +82,15 @@ export default async function TripDetailPage({ params }) {
           <h1 className="text-2xl font-semibold text-white">{trip.destination}</h1>
           <p className="text-gray-500 text-sm mt-1">
             Scheduled for{' '}
-            {new Date(trip.scheduled_at).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {new Date(trip.scheduled_at).toLocaleDateString('en-IN', {
+              weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+            })}
           </p>
+          {trip.driver && (
+            <p className="text-xs text-sky-400 mt-1">
+              Driver: {trip.driver.name}
+            </p>
+          )}
         </div>
         <span className={`text-xs px-3 py-1 rounded-full border font-medium ${statusColors[trip.status]}`}>
           {trip.status.toLowerCase().replace('_', ' ')}
@@ -78,6 +112,15 @@ export default async function TripDetailPage({ params }) {
         ))}
       </div>
 
+      {/* Assignment panel — coordinators and admins only, only for active trips */}
+      {canAssign && trip.status === 'PLANNED' && (
+        <TripAssignPanel
+          trip={trip}
+          drivers={drivers}
+          totalWeight={totalWeight}
+        />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Vehicle */}
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
@@ -92,12 +135,16 @@ export default async function TripDetailPage({ params }) {
                 {
                   label: 'Load',
                   value: `${((totalWeight / trip.vehicle.capacity_kg) * 100).toFixed(0)}%`,
-                  className: totalWeight / trip.vehicle.capacity_kg > 0.9 ? 'text-rose-400' : 'text-green-400',
+                  className: totalWeight / trip.vehicle.capacity_kg > 0.9
+                    ? 'text-rose-400'
+                    : 'text-green-400',
                 },
               ].map(({ label, value, mono, className }) => (
                 <div key={label} className="flex justify-between text-sm">
                   <span className="text-gray-500">{label}</span>
-                  <span className={`${mono ? 'font-mono' : ''} ${className ?? 'text-white'}`}>{value}</span>
+                  <span className={`${mono ? 'font-mono' : ''} ${className ?? 'text-white'}`}>
+                    {value}
+                  </span>
                 </div>
               ))}
             </div>
@@ -126,7 +173,11 @@ export default async function TripDetailPage({ params }) {
         </div>
       </div>
 
-      {/* Cost breakdown — only shown when GPS data exists */}
+      {/* GPS Map */}
+      <TripMap gpsLogs={gpsLogs} />
+
+
+      {/* Cost breakdown */}
       {distanceKm > 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-6">
           <h2 className="text-sm font-medium text-white mb-4">Cost breakdown</h2>
@@ -151,7 +202,7 @@ export default async function TripDetailPage({ params }) {
         </div>
       )}
 
-      {/* Requests list */}
+      {/* Requests table */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-800">
           <h2 className="text-sm font-medium text-white">Cargo requests in this trip</h2>
@@ -174,9 +225,13 @@ export default async function TripDetailPage({ params }) {
                 </td>
                 <td className="px-5 py-3 text-gray-500 text-xs hidden md:table-cell">
                   {req.user.name}
-                  {req.user.department && <span className="text-gray-600"> · {req.user.department}</span>}
+                  {req.user.department && (
+                    <span className="text-gray-600"> · {req.user.department}</span>
+                  )}
                 </td>
-                <td className="px-5 py-3 text-right text-gray-400 text-xs">{req.weight_kg} kg</td>
+                <td className="px-5 py-3 text-right text-gray-400 text-xs">
+                  {req.weight_kg} kg
+                </td>
               </tr>
             ))}
           </tbody>
