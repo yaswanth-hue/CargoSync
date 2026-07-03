@@ -10,19 +10,29 @@ export default function TripMap({ gpsLogs }) {
     if (!gpsLogs || gpsLogs.length < 2) return
     if (!mapRef.current) return
 
-    // Cleanup any existing instance
+    let cancelled = false
+
+    // Cleanup any existing instance synchronously before (re)creating
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove()
       mapInstanceRef.current = null
     }
 
-    // Clear leaflet's internal state on the DOM node
-    if (mapRef.current._leaflet_id) {
-      mapRef.current._leaflet_id = null
-    }
-
     import('leaflet').then((L) => {
-      if (!mapRef.current) return
+      // Bail out if this effect run was superseded/unmounted before
+      // the async import resolved (prevents the double-init race).
+      if (cancelled || !mapRef.current) return
+
+      // Clear leaflet's internal state on the DOM node right before
+      // creating the map — not earlier, since another (newer) effect
+      // run could have already claimed this node in the meantime.
+      if (mapRef.current._leaflet_id) {
+        mapRef.current._leaflet_id = null
+      }
+
+      // If a map instance was created by a run that started after
+      // this one but resolved first, don't stomp on it.
+      if (mapInstanceRef.current) return
 
       delete L.Icon.Default.prototype._getIconUrl
       L.Icon.Default.mergeOptions({
@@ -72,15 +82,23 @@ export default function TripMap({ gpsLogs }) {
 
       // Fit bounds after a short delay to ensure container is sized
       setTimeout(() => {
+        if (cancelled) return
         map.invalidateSize()
         map.fitBounds(polyline.getBounds(), { padding: [40, 40] })
       }, 100)
     })
 
     return () => {
+      cancelled = true
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove()
         mapInstanceRef.current = null
+      }
+      // Belt-and-suspenders: some Leaflet versions leave this flag set
+      // on the DOM node even after remove(), which trips the "already
+      // initialized" check on the very next mount.
+      if (mapRef.current && mapRef.current._leaflet_id) {
+        mapRef.current._leaflet_id = null
       }
     }
   }, [gpsLogs])

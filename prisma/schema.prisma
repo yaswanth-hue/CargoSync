@@ -41,6 +41,17 @@ enum Priority {
   HIGH
 }
 
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ClaimType {
+  EXTRA_KM
+  WAITING_TIME
+}
+
 model User {
   id           String    @id @default(uuid())
   email        String    @unique
@@ -50,28 +61,27 @@ model User {
   created_at   DateTime  @default(now())
   requests     Request[]
   driven_trips Trip[]    @relation("DriverTrips")
+  claims       Claim[]   @relation("UserClaims")
 }
 
 model Request {
-  id             String        @id @default(uuid())
-  title          String
-  description    String?
-  destination    String
-  weight_kg      Float         @default(0)
-  priority       Priority      @default(MEDIUM)
-  required_at    DateTime
-  status         RequestStatus @default(PENDING)
-  created_at     DateTime      @default(now())
-  // Internal user (optional — null for external submissions)
-  user_id        String?
-  user           User?         @relation(fields: [user_id], references: [id])
-  // External submitter contact info
-  contact_name   String?
-  contact_email  String?
-  contact_phone  String?
-  is_external    Boolean       @default(false)
-  trip_id        String?
-  trip           Trip?         @relation(fields: [trip_id], references: [id])
+  id            String        @id @default(uuid())
+  title         String
+  description   String?
+  destination   String
+  weight_kg     Float         @default(0)
+  priority      Priority      @default(MEDIUM)
+  required_at   DateTime
+  status        RequestStatus @default(PENDING)
+  created_at    DateTime      @default(now())
+  user_id       String?
+  user          User?         @relation(fields: [user_id], references: [id])
+  contact_name  String?
+  contact_email String?
+  contact_phone String?
+  is_external   Boolean       @default(false)
+  trip_id       String?
+  trip          Trip?         @relation(fields: [trip_id], references: [id])
 }
 
 model Vehicle {
@@ -99,6 +109,7 @@ model Trip {
   requests      Request[]
   waypoints     Waypoint[]
   gps_logs      GpsLog[]
+  claims        Claim[]
 }
 
 model Waypoint {
@@ -116,4 +127,20 @@ model GpsLog {
   lng       Float
   timestamp DateTime @default(now())
   trip      Trip     @relation(fields: [trip_id], references: [id])
+}
+
+model Claim {
+  id               String      @id @default(uuid())
+  trip_id          String
+  trip             Trip        @relation(fields: [trip_id], references: [id])
+  submitted_by     String
+  user             User        @relation("UserClaims", fields: [submitted_by], references: [id])
+  type             ClaimType
+  claimed_km       Float?
+  claimed_minutes  Int?
+  reason           String?
+  status           ClaimStatus @default(PENDING)
+  verdict          String?
+  actual_km        Float?
+  created_at       DateTime    @default(now())
 }

@@ -14,7 +14,6 @@ export async function GET(request) {
   const status = searchParams.get('status')
 
   const where = {}
-  // Dept users only see their own requests
   if (dbUser.role === 'DEPT_USER') where.user_id = dbUser.id
   if (status && status !== 'ALL') where.status = status
 
@@ -36,7 +35,7 @@ export async function POST(request) {
   if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
   const body = await request.json()
-  const { title, description, destination, weight_kg, priority, required_at } = body
+  const { title, description, pickup_location, destination, weight_kg, priority, required_at } = body
 
   if (!title || !destination || !required_at) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -46,6 +45,7 @@ export async function POST(request) {
     data: {
       title,
       description,
+      pickup_location: pickup_location || null,
       destination,
       weight_kg: parseFloat(weight_kg) || 0,
       priority: priority || 'MEDIUM',

@@ -19,8 +19,10 @@ export default function SubmitPage() {
       </div>
 
       <p className="text-gray-600 text-xs mt-8">
-        Already have an account?{' '}
-        <a href="/login" className="text-sky-400 hover:text-sky-300 transition-colors">Sign in →</a>
+        Employee?{' '}
+        <a href="/login" className="text-sky-400 hover:text-sky-300 transition-colors">
+          Sign in to your account →
+        </a>
       </p>
     </div>
   )

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { calculateDistanceFromTrail, calculateTripCost } from '@/lib/engine/cost'
+import ClaimSubmitForm from '@/components/trips/ClaimSubmitForm'
 import Link from 'next/link'
 
 const statusColors = {
@@ -16,8 +17,10 @@ export default async function DriverTripDetailPage({ params }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const dbUser = await prisma.user.findUnique({ where: { email: user.email } })
+
   const { id } = await params
-  const [trip, gpsLogs] = await Promise.all([
+  const [trip, gpsLogs, existingClaims] = await Promise.all([
     prisma.trip.findUnique({
       where: { id },
       include: {
@@ -32,6 +35,10 @@ export default async function DriverTripDetailPage({ params }) {
     prisma.gpsLog.findMany({
       where: { trip_id: id },
       orderBy: { timestamp: 'asc' },
+    }),
+    prisma.claim.findMany({
+      where: { trip_id: id, submitted_by: dbUser?.id },
+      select: { type: true, status: true, verdict: true, claimed_km: true, actual_km: true, claimed_minutes: true },
     }),
   ])
 
@@ -153,7 +160,7 @@ export default async function DriverTripDetailPage({ params }) {
       )}
 
       {/* Cargo list */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-4">
         <div className="px-4 py-3 border-b border-gray-800">
           <p className="text-sm font-medium text-white">Cargo manifest</p>
         </div>
@@ -163,7 +170,7 @@ export default async function DriverTripDetailPage({ params }) {
               <div>
                 <p className="text-sm text-white">{req.title}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {req.user.name}{req.user.department ? ` · ${req.user.department}` : ''}
+                  {req.user?.name}{req.user?.department ? ` · ${req.user.department}` : ''}
                 </p>
               </div>
               <p className="text-xs text-gray-400 ml-4 shrink-0">{req.weight_kg} kg</p>
@@ -171,6 +178,45 @@ export default async function DriverTripDetailPage({ params }) {
           ))}
         </div>
       </div>
+
+      {/* Claims section — only for completed trips */}
+      {trip.status === 'COMPLETED' && (
+        <div className="mb-6">
+          <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Claims</p>
+
+          {/* Show existing claims status */}
+          {existingClaims.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {existingClaims.map((claim, i) => (
+                <div key={i} className={`rounded-lg px-3 py-2.5 border text-xs ${
+                  claim.status === 'APPROVED'
+                    ? 'bg-green-500/5 border-green-500/20'
+                    : claim.status === 'REJECTED'
+                    ? 'bg-rose-500/5 border-rose-500/20'
+                    : 'bg-amber-500/5 border-amber-500/20'
+                }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-white font-medium">
+                      {claim.type === 'EXTRA_KM' ? 'Extra distance claim' : 'Waiting time claim'}
+                    </span>
+                    <span className={
+                      claim.status === 'APPROVED' ? 'text-green-400'
+                      : claim.status === 'REJECTED' ? 'text-rose-400'
+                      : 'text-amber-400'
+                    }>
+                      {claim.status === 'APPROVED' ? '✓ Approved' : claim.status === 'REJECTED' ? '✗ Rejected' : '⏳ Pending'}
+                    </span>
+                  </div>
+                  {claim.verdict && <p className="text-gray-400">{claim.verdict}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Claim submit form */}
+          <ClaimSubmitForm tripId={trip.id} existingClaims={existingClaims} />
+        </div>
+      )}
 
       {/* Update status button */}
       {(trip.status === 'PLANNED' || trip.status === 'IN_PROGRESS') && (

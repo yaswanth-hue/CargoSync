@@ -9,6 +9,7 @@ export default function NewRequestForm() {
   const [form, setForm] = useState({
     title: '',
     description: '',
+    pickup_location: '',
     destination: '',
     weight_kg: '',
     priority: 'MEDIUM',
@@ -20,8 +21,8 @@ export default function NewRequestForm() {
   }
 
   async function handleSubmit() {
-    if (!form.title || !form.destination || !form.required_at) {
-      setError('Title, destination, and required date are required.')
+    if (!form.title || !form.pickup_location || !form.destination || !form.required_at) {
+      setError('Title, pickup location, destination, and required date are required.')
       return
     }
     setError('')
@@ -52,48 +53,27 @@ export default function NewRequestForm() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div className="sm:col-span-2">
           <label className={labelClass}>Title *</label>
-          <input
-            type="text"
-            value={form.title}
-            onChange={set('title')}
-            placeholder="e.g. Medical supplies to warehouse B"
-            className={inputClass}
-          />
+          <input type="text" value={form.title} onChange={set('title')} placeholder="e.g. Medical supplies to Warehouse B" className={inputClass} />
         </div>
 
         <div className="sm:col-span-2">
           <label className={labelClass}>Description</label>
-          <textarea
-            value={form.description}
-            onChange={set('description')}
-            placeholder="Optional details about the cargo..."
-            rows={3}
-            className={`${inputClass} resize-none`}
-          />
+          <textarea value={form.description} onChange={set('description')} placeholder="Optional details about the cargo..." rows={2} className={`${inputClass} resize-none`} />
+        </div>
+
+        <div>
+          <label className={labelClass}>Pickup location *</label>
+          <input type="text" value={form.pickup_location} onChange={set('pickup_location')} placeholder="e.g. Factory Gate 2, Patancheru" className={inputClass} />
         </div>
 
         <div>
           <label className={labelClass}>Destination *</label>
-          <input
-            type="text"
-            value={form.destination}
-            onChange={set('destination')}
-            placeholder="e.g. Warehouse B, Sector 4"
-            className={inputClass}
-          />
+          <input type="text" value={form.destination} onChange={set('destination')} placeholder="e.g. Warehouse B, Kompally" className={inputClass} />
         </div>
 
         <div>
           <label className={labelClass}>Weight (kg)</label>
-          <input
-            type="number"
-            value={form.weight_kg}
-            onChange={set('weight_kg')}
-            placeholder="0"
-            min="0"
-            step="0.1"
-            className={inputClass}
-          />
+          <input type="number" value={form.weight_kg} onChange={set('weight_kg')} placeholder="0" min="0" step="0.1" className={inputClass} />
         </div>
 
         <div>
@@ -105,35 +85,21 @@ export default function NewRequestForm() {
           </select>
         </div>
 
-        <div>
+        <div className="sm:col-span-2">
           <label className={labelClass}>Required by *</label>
-          <input
-            type="datetime-local"
-            value={form.required_at}
-            onChange={set('required_at')}
-            className={inputClass}
-          />
+          <input type="datetime-local" value={form.required_at} onChange={set('required_at')} className={inputClass} />
         </div>
       </div>
 
       {error && (
-        <p className="text-xs text-rose-400 bg-rose-400/10 border border-rose-400/20 rounded-lg px-3 py-2">
-          {error}
-        </p>
+        <p className="text-xs text-rose-400 bg-rose-400/10 border border-rose-400/20 rounded-lg px-3 py-2">{error}</p>
       )}
 
       <div className="flex gap-3 pt-1">
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
-        >
+        <button onClick={handleSubmit} disabled={loading} className="bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
           {loading ? 'Submitting...' : 'Submit request'}
         </button>
-        <button
-          onClick={() => router.push('/requests')}
-          className="text-gray-400 hover:text-white text-sm px-4 py-2.5 rounded-lg transition-colors"
-        >
+        <button onClick={() => router.push('/requests')} className="text-gray-400 hover:text-white text-sm px-4 py-2.5 rounded-lg transition-colors">
           Cancel
         </button>
       </div>

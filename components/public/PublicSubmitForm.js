@@ -11,6 +11,7 @@ export default function PublicSubmitForm() {
     contact_phone: '',
     title: '',
     description: '',
+    pickup_location: '',
     destination: '',
     weight_kg: '',
     priority: 'MEDIUM',
@@ -22,7 +23,7 @@ export default function PublicSubmitForm() {
   }
 
   async function handleSubmit() {
-    if (!form.contact_name || !form.contact_email || !form.title || !form.destination || !form.required_at) {
+    if (!form.contact_name || !form.contact_email || !form.title || !form.pickup_location || !form.destination || !form.required_at) {
       setError('Please fill in all required fields.')
       return
     }
@@ -61,7 +62,10 @@ export default function PublicSubmitForm() {
           <span className="text-white">{form.contact_email}</span>.
         </p>
         <button
-          onClick={() => { setSubmitted(false); setForm({ contact_name: '', contact_email: '', contact_phone: '', title: '', description: '', destination: '', weight_kg: '', priority: 'MEDIUM', required_at: '' }) }}
+          onClick={() => {
+            setSubmitted(false)
+            setForm({ contact_name: '', contact_email: '', contact_phone: '', title: '', description: '', pickup_location: '', destination: '', weight_kg: '', priority: 'MEDIUM', required_at: '' })
+          }}
           className="mt-6 text-xs text-sky-400 hover:text-sky-300 transition-colors"
         >
           Submit another request →
@@ -112,15 +116,19 @@ export default function PublicSubmitForm() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
+              <label className={labelClass}>Pickup location *</label>
+              <input type="text" value={form.pickup_location} onChange={set('pickup_location')} placeholder="Factory Gate 2, Patancheru" className={inputClass} />
+            </div>
+            <div>
               <label className={labelClass}>Destination *</label>
               <input type="text" value={form.destination} onChange={set('destination')} placeholder="Warehouse B, Kompally" className={inputClass} />
             </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Weight (kg)</label>
               <input type="number" value={form.weight_kg} onChange={set('weight_kg')} placeholder="0" min="0" className={inputClass} />
             </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Priority</label>
               <select value={form.priority} onChange={set('priority')} className={inputClass}>
@@ -129,18 +137,16 @@ export default function PublicSubmitForm() {
                 <option value="HIGH">High — urgent</option>
               </select>
             </div>
-            <div>
-              <label className={labelClass}>Required by *</label>
-              <input type="datetime-local" value={form.required_at} onChange={set('required_at')} className={inputClass} />
-            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Required by *</label>
+            <input type="datetime-local" value={form.required_at} onChange={set('required_at')} className={inputClass} />
           </div>
         </div>
       </div>
 
       {error && (
-        <p className="text-xs text-rose-400 bg-rose-400/10 border border-rose-400/20 rounded-lg px-3 py-2">
-          {error}
-        </p>
+        <p className="text-xs text-rose-400 bg-rose-400/10 border border-rose-400/20 rounded-lg px-3 py-2">{error}</p>
       )}
 
       <button

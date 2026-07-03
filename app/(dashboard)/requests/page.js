@@ -14,6 +14,7 @@ export default async function RequestsPage({ searchParams }) {
 
   const statusFilter = (await searchParams)?.status
   const where = {}
+  // Dept users only see their own requests; coordinators and admins see all
   if (dbUser?.role === 'DEPT_USER') where.user_id = dbUser.id
   if (statusFilter && statusFilter !== 'ALL') where.status = statusFilter
 
@@ -23,6 +24,9 @@ export default async function RequestsPage({ searchParams }) {
     include: { user: { select: { name: true, department: true } } },
   })
 
+  // Dept users, coordinators, and admins can all create requests — only drivers cannot
+  const canCreateRequest = dbUser?.role !== 'DRIVER'
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-8 flex items-center justify-between">
@@ -30,7 +34,7 @@ export default async function RequestsPage({ searchParams }) {
           <h1 className="text-2xl font-semibold text-white">Requests</h1>
           <p className="text-gray-500 text-sm mt-1">{requests.length} total</p>
         </div>
-        {dbUser?.role !== 'DRIVER' && (
+        {canCreateRequest && (
           <a
             href="/requests/new"
             className="bg-sky-500 hover:bg-sky-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"

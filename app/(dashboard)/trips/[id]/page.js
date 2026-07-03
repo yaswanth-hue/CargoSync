@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { calculateDistanceFromTrail, calculateTripCost } from '@/lib/engine/cost'
 import TripAssignPanel from '@/components/trips/TripAssignPanel'
 import TripMap from '@/components/trips/TripMap'
+import ClaimsPanel from '@/components/trips/ClaimsPanel'
 
 const statusColors = {
   PLANNED: 'text-gray-400 bg-gray-800 border-gray-700',
@@ -22,7 +23,7 @@ export default async function TripDetailPage({ params }) {
 
   const { id } = await params
 
-  const [trip, gpsLogs] = await Promise.all([
+  const [trip, gpsLogs, claims] = await Promise.all([
     prisma.trip.findUnique({
       where: { id },
       include: {
@@ -38,6 +39,11 @@ export default async function TripDetailPage({ params }) {
     prisma.gpsLog.findMany({
       where: { trip_id: id },
       orderBy: { timestamp: 'asc' },
+    }),
+    prisma.claim.findMany({
+      where: { trip_id: id },
+      include: { user: { select: { name: true, role: true } } },
+      orderBy: { created_at: 'desc' },
     }),
   ])
 
@@ -87,9 +93,7 @@ export default async function TripDetailPage({ params }) {
             })}
           </p>
           {trip.driver && (
-            <p className="text-xs text-sky-400 mt-1">
-              Driver: {trip.driver.name}
-            </p>
+            <p className="text-xs text-sky-400 mt-1">Driver: {trip.driver.name}</p>
           )}
         </div>
         <span className={`text-xs px-3 py-1 rounded-full border font-medium ${statusColors[trip.status]}`}>
@@ -112,7 +116,7 @@ export default async function TripDetailPage({ params }) {
         ))}
       </div>
 
-      {/* Assignment panel — coordinators and admins only, only for active trips */}
+      {/* Assignment panel — only for PLANNED trips */}
       {canAssign && trip.status === 'PLANNED' && (
         <TripAssignPanel
           trip={trip}
@@ -176,7 +180,6 @@ export default async function TripDetailPage({ params }) {
       {/* GPS Map */}
       <TripMap gpsLogs={gpsLogs} />
 
-
       {/* Cost breakdown */}
       {distanceKm > 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-6">
@@ -202,6 +205,11 @@ export default async function TripDetailPage({ params }) {
         </div>
       )}
 
+      {/* Claims panel — shows for all completed trips */}
+      {trip.status === 'COMPLETED' && (
+        <ClaimsPanel claims={claims} tripId={id} />
+      )}
+
       {/* Requests table */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-800">
@@ -224,8 +232,8 @@ export default async function TripDetailPage({ params }) {
                   </a>
                 </td>
                 <td className="px-5 py-3 text-gray-500 text-xs hidden md:table-cell">
-                  {req.user.name}
-                  {req.user.department && (
+                  {req.user?.name}
+                  {req.user?.department && (
                     <span className="text-gray-600"> · {req.user.department}</span>
                   )}
                 </td>

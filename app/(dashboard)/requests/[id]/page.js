@@ -92,10 +92,25 @@ export default async function RequestDetailPage({ params }) {
         </div>
       )}
 
+      {/* Route — pickup to destination */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6">
+        <p className="text-xs text-gray-500 mb-3">Route</p>
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <p className="text-xs text-gray-500 mb-1">Pickup</p>
+            <p className="text-sm text-white">{req.pickup_location ?? <span className="text-gray-600 italic">Not specified</span>}</p>
+          </div>
+          <div className="text-gray-600 text-lg">→</div>
+          <div className="flex-1">
+            <p className="text-xs text-gray-500 mb-1">Destination</p>
+            <p className="text-sm text-white">{req.destination}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Details grid */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         {[
-          { label: 'Destination', value: req.destination },
           { label: 'Priority', value: req.priority, className: priorityColors[req.priority] },
           { label: 'Weight', value: `${req.weight_kg} kg` },
           { label: 'Required by', value: new Date(req.required_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) },
