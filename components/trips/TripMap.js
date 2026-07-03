@@ -10,6 +10,7 @@ export default function TripMap({ gpsLogs }) {
     if (!gpsLogs || gpsLogs.length < 2) return
     if (!mapRef.current) return
 
+    const mapNode = mapRef.current
     let cancelled = false
 
     // Cleanup any existing instance synchronously before (re)creating
@@ -97,8 +98,8 @@ export default function TripMap({ gpsLogs }) {
       // Belt-and-suspenders: some Leaflet versions leave this flag set
       // on the DOM node even after remove(), which trips the "already
       // initialized" check on the very next mount.
-      if (mapRef.current && mapRef.current._leaflet_id) {
-        mapRef.current._leaflet_id = null
+      if (mapNode && mapNode._leaflet_id) {
+        mapNode._leaflet_id = null
       }
     }
   }, [gpsLogs])
