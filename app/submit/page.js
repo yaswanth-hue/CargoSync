@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import PublicSubmitForm from '@/components/public/PublicSubmitForm'
 
 export default function SubmitPage() {
@@ -20,9 +21,9 @@ export default function SubmitPage() {
 
       <p className="text-gray-600 text-xs mt-8">
         Employee?{' '}
-        <a href="/login" className="text-sky-400 hover:text-sky-300 transition-colors">
+        <Link href="/login" className="text-sky-400 hover:text-sky-300 transition-colors">
           Sign in to your account →
-        </a>
+        </Link>
       </p>
     </div>
   )

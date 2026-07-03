@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const statusColors = {
   PENDING: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
@@ -39,7 +40,7 @@ export default function RecentActivity({ requests: initialRequests }) {
   if (!requests?.length) {
     return (
       <div className="text-center py-12 text-gray-600 text-sm">
-        No requests yet. <a href="/requests/new" className="text-sky-400 hover:text-sky-300">Create one →</a>
+        No requests yet. <Link href="/requests/new" className="text-sky-400 hover:text-sky-300">Create one →</Link>
       </div>
     )
   }

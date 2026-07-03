@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
+import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import TripStatusUpdater from '@/components/trips/TripStatusUpdater'
 
@@ -19,9 +20,9 @@ export default async function UpdateTripStatusPage({ params }) {
   return (
     <div>
       <div className="mb-6">
-        <a href={`/driver/trips/${id}`} className="text-xs text-gray-500 hover:text-gray-400 transition-colors">
+        <Link href={`/driver/trips/${id}`} className="text-xs text-gray-500 hover:text-gray-400 transition-colors">
           ← Back to trip
-        </a>
+        </Link>
         <h1 className="text-xl font-semibold text-white mt-4">Update status</h1>
         <p className="text-gray-500 text-sm mt-1">{trip.destination}</p>
       </div>

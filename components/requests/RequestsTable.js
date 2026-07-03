@@ -1,6 +1,7 @@
 'use client'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const STATUS_TABS = ['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'CONSOLIDATED']
 
@@ -55,7 +56,7 @@ export default function RequestsTable({ requests, canApprove, currentStatus }) {
       {requests.length === 0 ? (
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 text-center py-16 text-gray-600 text-sm">
           No requests found.{' '}
-          <a href="/requests/new" className="text-sky-400 hover:text-sky-300">Create one →</a>
+          <Link href="/requests/new" className="text-sky-400 hover:text-sky-300">Create one →</Link>
         </div>
       ) : (
         <>

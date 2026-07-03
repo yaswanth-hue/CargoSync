@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import KpiCard from '@/components/dashboard/KpiCard'
 import RecentActivity from '@/components/dashboard/RecentActivity'
@@ -57,7 +58,7 @@ export default async function DashboardPage() {
       <div className="rounded-xl border border-gray-800 bg-gray-900/50">
         <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
           <h2 className="text-sm font-medium text-white">Recent activity</h2>
-          <a href="/requests" className="text-xs text-sky-400 hover:text-sky-300 transition-colors">View all →</a>
+          <Link href="/requests" className="text-xs text-sky-400 hover:text-sky-300 transition-colors">View all →</Link>
         </div>
         <div className="px-5 py-2">
           <RecentActivity requests={recentRequests} />

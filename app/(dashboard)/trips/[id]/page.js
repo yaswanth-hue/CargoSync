@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
+import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { calculateDistanceFromTrail, calculateTripCost } from '@/lib/engine/cost'
 import { canViewTrips } from '@/lib/auth/rbac'
@@ -80,9 +81,9 @@ export default async function TripDetailPage({ params }) {
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <div className="mb-6">
-        <a href="/trips" className="text-xs text-gray-500 hover:text-gray-400 transition-colors">
+        <Link href="/trips" className="text-xs text-gray-500 hover:text-gray-400 transition-colors">
           ← Back to trips
-        </a>
+        </Link>
       </div>
 
       {/* Header */}
@@ -230,9 +231,9 @@ export default async function TripDetailPage({ params }) {
             {trip.requests.map((req) => (
               <tr key={req.id}>
                 <td className="px-5 py-3">
-                  <a href={`/requests/${req.id}`} className="text-white hover:text-sky-400 transition-colors">
+                  <Link href={`/requests/${req.id}`} className="text-white hover:text-sky-400 transition-colors">
                     {req.title}
-                  </a>
+                  </Link>
                 </td>
                 <td className="px-5 py-3 text-gray-500 text-xs hidden md:table-cell">
                   {req.user?.name}
