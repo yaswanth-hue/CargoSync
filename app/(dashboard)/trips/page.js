@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { canApproveRequests } from '@/lib/auth/rbac'
+import { canApproveRequests, canViewTrips } from '@/lib/auth/rbac'
 import TripsTable from '@/components/trips/TripsTable'
 import ConsolidateButton from '@/components/trips/ConsolidateButton'
 
@@ -11,6 +11,8 @@ export default async function TripsPage() {
   if (!user) redirect('/login')
 
   const dbUser = await prisma.user.findUnique({ where: { email: user.email } })
+  if (!canViewTrips(dbUser?.role)) redirect('/dashboard')
+
   const canConsolidate = canApproveRequests(dbUser?.role)
 
   const [trips, pendingApproved] = await Promise.all([

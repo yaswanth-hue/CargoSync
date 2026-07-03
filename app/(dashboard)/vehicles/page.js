@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { canManageVehicles, canViewVehicles } from '@/lib/auth/rbac'
 import VehiclesTable from '@/components/vehicles/VehiclesTable'
 import AddVehicleForm from '@/components/vehicles/AddVehicleForm'
 
@@ -10,13 +11,9 @@ export default async function VehiclesPage() {
   if (!user) redirect('/login')
 
   const dbUser = await prisma.user.findUnique({ where: { email: user.email } })
+  if (!canViewVehicles(dbUser?.role)) redirect('/dashboard')
 
-  // Only admin and coordinator can view this page
-  if (!dbUser || !['ADMIN', 'COORDINATOR'].includes(dbUser.role)) {
-    redirect('/dashboard')
-  }
-
-  const isAdmin = dbUser.role === 'ADMIN'
+  const isAdmin = canManageVehicles(dbUser?.role)
 
   const vehicles = await prisma.vehicle.findMany({
     orderBy: { created_at: 'desc' },

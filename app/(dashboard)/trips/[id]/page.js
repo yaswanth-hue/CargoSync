@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { calculateDistanceFromTrail, calculateTripCost } from '@/lib/engine/cost'
+import { canViewTrips } from '@/lib/auth/rbac'
 import TripAssignPanel from '@/components/trips/TripAssignPanel'
 import TripMap from '@/components/trips/TripMap'
 import ClaimsPanel from '@/components/trips/ClaimsPanel'
@@ -19,6 +20,8 @@ export default async function TripDetailPage({ params }) {
   if (!user) redirect('/login')
 
   const dbUser = await prisma.user.findUnique({ where: { email: user.email } })
+  if (!canViewTrips(dbUser?.role)) redirect('/dashboard')
+
   const canAssign = ['ADMIN', 'COORDINATOR'].includes(dbUser?.role)
 
   const { id } = await params
