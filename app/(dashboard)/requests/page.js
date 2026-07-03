@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { canApproveRequests } from '@/lib/auth/rbac'
 import RequestsTable from '@/components/requests/RequestsTable'
+import Link from 'next/link'
 
 export default async function RequestsPage({ searchParams }) {
   const supabase = await createClient()
@@ -35,12 +36,12 @@ export default async function RequestsPage({ searchParams }) {
           <p className="text-gray-500 text-sm mt-1">{requests.length} total</p>
         </div>
         {canCreateRequest && (
-          <a
+          <Link
             href="/requests/new"
             className="bg-sky-500 hover:bg-sky-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             + New request
-          </a>
+          </Link>
         )}
       </div>
       <RequestsTable requests={requests} canApprove={canApprove} currentStatus={statusFilter ?? 'ALL'} />

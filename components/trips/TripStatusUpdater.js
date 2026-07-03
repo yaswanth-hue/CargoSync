@@ -15,17 +15,16 @@ export default function TripStatusUpdater({ trip }) {
   const [tracking, setTracking] = useState(trip.status === 'IN_PROGRESS')
   const [lastPosition, setLastPosition] = useState(null)
   const [pingCount, setPingCount] = useState(0)
-  const [gpsError, setGpsError] = useState('')
+  const [gpsError, setGpsError] = useState(() =>
+    typeof navigator !== 'undefined' && !navigator.geolocation
+      ? 'GPS not supported on this device'
+      : ''
+  )
   const watchIdRef = useRef(null)
 
   // Start GPS tracking when trip is IN_PROGRESS
   useEffect(() => {
-    if (!tracking) return
-
-    if (!navigator.geolocation) {
-      setGpsError('GPS not supported on this device')
-      return
-    }
+    if (!tracking || !navigator.geolocation) return
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (position) => {
