@@ -7,6 +7,7 @@ import Link from 'next/link'
 
 const statusColors = {
   PLANNED: 'text-gray-400 bg-gray-800 border-gray-700',
+  PICKED_UP: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
   IN_PROGRESS: 'text-sky-400 bg-sky-400/10 border-sky-400/20',
   COMPLETED: 'text-green-400 bg-green-400/10 border-green-400/20',
   CANCELLED: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
@@ -105,8 +106,8 @@ export default async function DriverTripDetailPage({ params }) {
               <>
                 <p className="text-2xl font-semibold text-gray-600">—</p>
                 <p className="text-xs text-gray-600 mt-1">
-                  {trip.status === 'PLANNED'
-                    ? 'Available once trip starts'
+                  {['PLANNED', 'PICKED_UP'].includes(trip.status)
+                    ? 'Available once you start driving'
                     : 'No GPS data recorded'}
                 </p>
               </>
@@ -159,7 +160,7 @@ export default async function DriverTripDetailPage({ params }) {
         </div>
       )}
 
-      {/* Cargo list */}
+      {/* Cargo manifest */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-4">
         <div className="px-4 py-3 border-b border-gray-800">
           <p className="text-sm font-medium text-white">Cargo manifest</p>
@@ -183,8 +184,6 @@ export default async function DriverTripDetailPage({ params }) {
       {trip.status === 'COMPLETED' && (
         <div className="mb-6">
           <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Claims</p>
-
-          {/* Show existing claims status */}
           {existingClaims.length > 0 && (
             <div className="space-y-2 mb-4">
               {existingClaims.map((claim, i) => (
@@ -212,19 +211,21 @@ export default async function DriverTripDetailPage({ params }) {
               ))}
             </div>
           )}
-
-          {/* Claim submit form */}
           <ClaimSubmitForm tripId={trip.id} existingClaims={existingClaims} />
         </div>
       )}
 
       {/* Update status button */}
-      {(trip.status === 'PLANNED' || trip.status === 'IN_PROGRESS') && (
+      {['PLANNED', 'PICKED_UP', 'IN_PROGRESS'].includes(trip.status) && (
         <Link
           href={`/driver/trips/${trip.id}/update`}
           className="block w-full bg-sky-500 hover:bg-sky-400 active:bg-sky-600 text-white text-sm font-medium py-3 rounded-xl text-center transition-colors"
         >
-          Update trip status
+          {trip.status === 'PLANNED'
+            ? 'Go to pickup → confirm cargo'
+            : trip.status === 'PICKED_UP'
+            ? 'Start driving → begin GPS'
+            : 'Update trip status'}
         </Link>
       )}
     </div>

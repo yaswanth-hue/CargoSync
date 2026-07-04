@@ -24,6 +24,7 @@ enum RequestStatus {
 
 enum TripStatus {
   PLANNED
+  PICKED_UP
   IN_PROGRESS
   COMPLETED
   CANCELLED
@@ -130,17 +131,17 @@ model GpsLog {
 }
 
 model Claim {
-  id               String      @id @default(uuid())
-  trip_id          String
-  trip             Trip        @relation(fields: [trip_id], references: [id])
-  submitted_by     String
-  user             User        @relation("UserClaims", fields: [submitted_by], references: [id])
-  type             ClaimType
-  claimed_km       Float?
-  claimed_minutes  Int?
-  reason           String?
-  status           ClaimStatus @default(PENDING)
-  verdict          String?
-  actual_km        Float?
-  created_at       DateTime    @default(now())
+  id              String      @id @default(uuid())
+  trip_id         String
+  trip            Trip        @relation(fields: [trip_id], references: [id])
+  submitted_by    String
+  user            User        @relation("UserClaims", fields: [submitted_by], references: [id])
+  type            ClaimType
+  claimed_km      Float?
+  claimed_minutes Int?
+  reason          String?
+  status          ClaimStatus @default(PENDING)
+  verdict         String?
+  actual_km       Float?
+  created_at      DateTime    @default(now())
 }

@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
-import { calculateDistanceFromTrail, calculateTripCost } from '@/lib/engine/cost'
+import { calculateDistanceFromTrail, calculateTripCost, detectStationaryPeriods } from '@/lib/engine/cost'
 import { canViewTrips } from '@/lib/auth/rbac'
 import TripAssignPanel from '@/components/trips/TripAssignPanel'
 import TripMap from '@/components/trips/TripMap'
@@ -10,6 +10,7 @@ import ClaimsPanel from '@/components/trips/ClaimsPanel'
 
 const statusColors = {
   PLANNED: 'text-gray-400 bg-gray-800 border-gray-700',
+  PICKED_UP: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
   IN_PROGRESS: 'text-sky-400 bg-sky-400/10 border-sky-400/20',
   COMPLETED: 'text-green-400 bg-green-400/10 border-green-400/20',
   CANCELLED: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
@@ -24,7 +25,6 @@ export default async function TripDetailPage({ params }) {
   if (!canViewTrips(dbUser?.role)) redirect('/dashboard')
 
   const canAssign = ['ADMIN', 'COORDINATOR'].includes(dbUser?.role)
-
   const { id } = await params
 
   const [trip, gpsLogs, claims] = await Promise.all([
@@ -55,10 +55,9 @@ export default async function TripDetailPage({ params }) {
 
   const totalWeight = trip.requests.reduce((sum, r) => sum + r.weight_kg, 0)
 
-  // Drivers already on another active trip (exclude current trip)
   const busyDriverIds = await prisma.trip.findMany({
     where: {
-      status: { in: ['PLANNED', 'IN_PROGRESS'] },
+      status: { in: ['PLANNED', 'PICKED_UP', 'IN_PROGRESS'] },
       id: { not: id },
       driver_id: { not: null },
     },
@@ -75,6 +74,8 @@ export default async function TripDetailPage({ params }) {
   })
 
   const distanceKm = calculateDistanceFromTrail(gpsLogs)
+  const stationaryPeriods = detectStationaryPeriods(gpsLogs)
+  const totalWaitingMinutes = stationaryPeriods.reduce((s, p) => s + p.durationMinutes, 0)
   const ratePerKm = trip.vehicle?.rate_per_km ?? 10
   const totalCost = calculateTripCost(distanceKm, ratePerKm)
 
@@ -105,7 +106,7 @@ export default async function TripDetailPage({ params }) {
         </span>
       </div>
 
-      {/* Stats row */}
+      {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-8">
         {[
           { label: 'Requests', value: trip.requests.length },
@@ -122,11 +123,7 @@ export default async function TripDetailPage({ params }) {
 
       {/* Assignment panel — only for PLANNED trips */}
       {canAssign && trip.status === 'PLANNED' && (
-        <TripAssignPanel
-          trip={trip}
-          drivers={drivers}
-          totalWeight={totalWeight}
-        />
+        <TripAssignPanel trip={trip} drivers={drivers} totalWeight={totalWeight} />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -144,8 +141,7 @@ export default async function TripDetailPage({ params }) {
                   label: 'Load',
                   value: `${((totalWeight / trip.vehicle.capacity_kg) * 100).toFixed(0)}%`,
                   className: totalWeight / trip.vehicle.capacity_kg > 0.9
-                    ? 'text-rose-400'
-                    : 'text-green-400',
+                    ? 'text-rose-400' : 'text-green-400',
                 },
               ].map(({ label, value, mono, className }) => (
                 <div key={label} className="flex justify-between text-sm">
@@ -209,7 +205,34 @@ export default async function TripDetailPage({ params }) {
         </div>
       )}
 
-      {/* Claims panel — shows for all completed trips */}
+      {/* Waiting time breakdown */}
+      {stationaryPeriods.length > 0 && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-6">
+          <h2 className="text-sm font-medium text-white mb-4">
+            Waiting time detected
+            <span className="ml-2 text-xs text-gray-500 font-normal">
+              {totalWaitingMinutes} min total · {stationaryPeriods.length} stop(s)
+            </span>
+          </h2>
+          <div className="space-y-2">
+            {stationaryPeriods.map((p, i) => (
+              <div key={i} className="flex items-center justify-between text-xs py-2 border-b border-gray-800 last:border-0">
+                <div>
+                  <p className="text-white">Stop {i + 1}</p>
+                  <p className="text-gray-500 mt-0.5">
+                    {new Date(p.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    {' → '}
+                    {new Date(p.endTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <span className="text-amber-400 font-medium">{p.durationMinutes} min</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Claims panel */}
       {trip.status === 'COMPLETED' && (
         <ClaimsPanel claims={claims} tripId={id} />
       )}

@@ -5,6 +5,7 @@ import Link from 'next/link'
 
 const statusColors = {
   PLANNED: 'text-gray-400 bg-gray-800 border-gray-700',
+  PICKED_UP: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
   IN_PROGRESS: 'text-sky-400 bg-sky-400/10 border-sky-400/20',
   COMPLETED: 'text-green-400 bg-green-400/10 border-green-400/20',
   CANCELLED: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
@@ -16,7 +17,7 @@ export default async function DriverTripsPage() {
   if (!user) redirect('/login')
 
   const trips = await prisma.trip.findMany({
-    where: { status: { in: ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] } },
+    where: { status: { in: ['PLANNED', 'PICKED_UP', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] } },
     orderBy: { scheduled_at: 'desc' },
     include: {
       vehicle: true,
@@ -28,7 +29,7 @@ export default async function DriverTripsPage() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const activeTrips = trips.filter((t) => ['PLANNED', 'IN_PROGRESS'].includes(t.status))
+  const activeTrips = trips.filter((t) => ['PLANNED', 'PICKED_UP', 'IN_PROGRESS'].includes(t.status))
   const completedTrips = trips.filter((t) => ['COMPLETED', 'CANCELLED'].includes(t.status))
 
   const todayTrips = activeTrips.filter((t) => {

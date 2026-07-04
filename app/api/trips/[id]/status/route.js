@@ -13,7 +13,7 @@ export async function PATCH(request, { params }) {
   const { id } = await params
   const { status } = await request.json()
 
-  const validStatuses = ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
+  const validStatuses = ['PLANNED', 'PICKED_UP', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
   if (!validStatuses.includes(status)) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
   }
@@ -25,7 +25,6 @@ export async function PATCH(request, { params }) {
 
   if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
 
-  // Only assigned driver or admin/coordinator can update status
   const isAssignedDriver = dbUser.role === 'DRIVER' && trip.driver_id === dbUser.id
   const isCoordinator = ['ADMIN', 'COORDINATOR'].includes(dbUser.role)
 
@@ -33,9 +32,8 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Driver can only move to IN_PROGRESS, COMPLETED, or CANCELLED
   if (dbUser.role === 'DRIVER') {
-    const driverAllowed = ['IN_PROGRESS', 'COMPLETED', 'CANCELLED']
+    const driverAllowed = ['PICKED_UP', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
     if (!driverAllowed.includes(status)) {
       return NextResponse.json({ error: 'Drivers cannot set this status' }, { status: 403 })
     }

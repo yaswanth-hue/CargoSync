@@ -2,11 +2,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
-const QUICK_STATUSES = [
-  { value: 'IN_PROGRESS', label: 'Start trip', color: 'bg-sky-500 hover:bg-sky-400' },
-  { value: 'COMPLETED', label: 'Mark as completed', color: 'bg-green-500 hover:bg-green-400' },
-  { value: 'CANCELLED', label: 'Report issue / Cancel', color: 'bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400' },
-]
+const STEPS = ['PLANNED', 'PICKED_UP', 'IN_PROGRESS', 'COMPLETED']
+const STEP_LABELS = {
+  PLANNED: 'Dispatched',
+  PICKED_UP: 'Picked up',
+  IN_PROGRESS: 'En route',
+  COMPLETED: 'Delivered',
+}
 
 export default function TripStatusUpdater({ trip }) {
   const router = useRouter()
@@ -15,37 +17,36 @@ export default function TripStatusUpdater({ trip }) {
   const [tracking, setTracking] = useState(trip.status === 'IN_PROGRESS')
   const [lastPosition, setLastPosition] = useState(null)
   const [pingCount, setPingCount] = useState(0)
-  const [gpsError, setGpsError] = useState(() =>
-    typeof navigator !== 'undefined' && !navigator.geolocation
-      ? 'GPS not supported on this device'
-      : ''
-  )
+  const [gpsError, setGpsError] = useState('')
+  const [step, setStep] = useState(trip.status)
   const watchIdRef = useRef(null)
 
-  // Start GPS tracking when trip is IN_PROGRESS
   useEffect(() => {
-    if (!tracking || !navigator.geolocation) return
+    if (!tracking) return
+    if (!navigator.geolocation) {
+      setGpsError('GPS not supported on this device')
+      return
+    }
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (position) => {
         const { latitude, longitude } = position.coords
         setLastPosition({ lat: latitude, lng: longitude })
         setGpsError('')
-
         try {
           await fetch('/api/gps', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ trip_id: trip.id, lat: latitude, lng: longitude }),
+            body: JSON.stringify({
+              trip_id: trip.id,
+              lat: latitude,
+              lng: longitude,
+            }),
           })
           setPingCount((c) => c + 1)
-        } catch (e) {
-          // silent fail, will retry on next position update
-        }
+        } catch (e) {}
       },
-      (err) => {
-        setGpsError(err.message || 'Could not get location')
-      },
+      (err) => setGpsError(err.message || 'Could not get location'),
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     )
 
@@ -62,18 +63,19 @@ export default function TripStatusUpdater({ trip }) {
       body: JSON.stringify({ status }),
     })
     setLoading(null)
+    setStep(status)
 
     if (status === 'IN_PROGRESS') {
-      // Start tracking immediately, stay on this page
       setTracking(true)
       return
     }
 
-    // Completed or cancelled — stop tracking and redirect
-    if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current)
-    setTracking(false)
-    setDone(true)
-    setTimeout(() => router.push(`/driver/trips/${trip.id}`), 800)
+    if (status === 'COMPLETED' || status === 'CANCELLED') {
+      if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current)
+      setTracking(false)
+      setDone(true)
+      setTimeout(() => router.push(`/driver/trips/${trip.id}`), 800)
+    }
   }
 
   if (done) {
@@ -88,7 +90,47 @@ export default function TripStatusUpdater({ trip }) {
 
   return (
     <div className="space-y-5">
-      {/* GPS tracking panel — shows once trip is started */}
+
+      {/* Step progress indicator */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+        <p className="text-xs text-gray-500 mb-4 uppercase tracking-widest">Trip progress</p>
+        <div className="flex items-start">
+          {STEPS.map((s, i) => {
+            const currentIdx = STEPS.indexOf(step === 'CANCELLED' ? 'PLANNED' : step)
+            const thisIdx = i
+            const isDone = thisIdx < currentIdx
+            const isCurrent = thisIdx === currentIdx
+
+            return (
+              <div key={s} className="flex items-center flex-1">
+                <div className="flex flex-col items-center flex-1">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium border-2 transition-colors ${
+                    isDone
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : isCurrent
+                      ? 'bg-sky-500 border-sky-500 text-white'
+                      : 'bg-gray-900 border-gray-700 text-gray-600'
+                  }`}>
+                    {isDone ? '✓' : i + 1}
+                  </div>
+                  <p className={`text-xs mt-1.5 text-center leading-tight ${
+                    isCurrent ? 'text-sky-400' : isDone ? 'text-green-400' : 'text-gray-600'
+                  }`}>
+                    {STEP_LABELS[s]}
+                  </p>
+                </div>
+                {i < STEPS.length - 1 && (
+                  <div className={`h-0.5 flex-1 mb-5 mx-1 ${
+                    isDone ? 'bg-green-500' : 'bg-gray-800'
+                  }`} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* GPS tracking panel — shows only when IN_PROGRESS */}
       {tracking && (
         <div className="bg-gray-900 border border-sky-500/30 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
@@ -98,7 +140,6 @@ export default function TripStatusUpdater({ trip }) {
             </div>
             <span className="text-xs text-gray-500">{pingCount} pings sent</span>
           </div>
-
           {gpsError ? (
             <p className="text-xs text-rose-400">{gpsError}</p>
           ) : lastPosition ? (
@@ -118,25 +159,67 @@ export default function TripStatusUpdater({ trip }) {
         </div>
       )}
 
-      {/* Status buttons */}
-      <div className="space-y-3">
-        {QUICK_STATUSES
-          .filter((s) => {
-            if (trip.status === 'PLANNED' && !tracking) return true
-            if (tracking) return s.value !== 'IN_PROGRESS'
-            return true
-          })
-          .map((s) => (
-            <button
-              key={s.label}
-              onClick={() => updateStatus(s.value)}
-              disabled={!!loading}
-              className={`w-full py-4 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 ${s.color || 'bg-gray-800 text-white hover:bg-gray-700'}`}
-            >
-              {loading === s.value ? 'Updating...' : s.label}
-            </button>
-          ))}
-      </div>
+      {/* Step 1 — Confirm pickup (at the pickup point, before driving) */}
+      {step === 'PLANNED' && (
+        <div className="space-y-3">
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+            <p className="text-xs text-amber-400 font-medium mb-1">Before you start driving</p>
+            <p className="text-xs text-gray-500">
+              Go to the pickup point, load all cargo listed in the manifest, then confirm pickup below.
+              GPS tracking will NOT start yet.
+            </p>
+          </div>
+          <button
+            onClick={() => updateStatus('PICKED_UP')}
+            disabled={!!loading}
+            className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium py-4 rounded-xl transition-colors"
+          >
+            {loading === 'PICKED_UP' ? 'Confirming...' : '📦 Confirm cargo picked up'}
+          </button>
+        </div>
+      )}
+
+      {/* Step 2 — Start driving, GPS begins now */}
+      {step === 'PICKED_UP' && (
+        <div className="space-y-3">
+          <div className="bg-sky-500/5 border border-sky-500/20 rounded-xl p-4">
+            <p className="text-xs text-sky-400 font-medium mb-1">Cargo loaded ✓</p>
+            <p className="text-xs text-gray-500">
+              When you're ready to drive to the destination, tap the button below.
+              GPS tracking will begin and record your route for distance and cost calculation.
+            </p>
+          </div>
+          <button
+            onClick={() => updateStatus('IN_PROGRESS')}
+            disabled={!!loading}
+            className="w-full bg-sky-500 hover:bg-sky-400 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium py-4 rounded-xl transition-colors"
+          >
+            {loading === 'IN_PROGRESS' ? 'Starting GPS...' : '🚛 Start driving — begin GPS tracking'}
+          </button>
+        </div>
+      )}
+
+      {/* Step 3 — Mark as delivered */}
+      {step === 'IN_PROGRESS' && tracking && (
+        <button
+          onClick={() => updateStatus('COMPLETED')}
+          disabled={!!loading}
+          className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium py-4 rounded-xl transition-colors"
+        >
+          {loading === 'COMPLETED' ? 'Completing...' : '✓ Mark as delivered'}
+        </button>
+      )}
+
+      {/* Cancel — always available until completed */}
+      {!['COMPLETED', 'CANCELLED'].includes(step) && (
+        <button
+          onClick={() => updateStatus('CANCELLED')}
+          disabled={!!loading}
+          className="w-full bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-sm font-medium py-3 rounded-xl transition-colors"
+        >
+          {loading === 'CANCELLED' ? 'Cancelling...' : 'Report issue / Cancel trip'}
+        </button>
+      )}
     </div>
   )
 }
