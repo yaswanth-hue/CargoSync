@@ -24,7 +24,7 @@ export default function TripStatusUpdater({ trip }) {
   useEffect(() => {
     if (!tracking) return
     if (!navigator.geolocation) {
-      setGpsError('GPS not supported on this device')
+      setTimeout(() => setGpsError('GPS not supported on this device'), 0)
       return
     }
 
@@ -185,7 +185,7 @@ export default function TripStatusUpdater({ trip }) {
           <div className="bg-sky-500/5 border border-sky-500/20 rounded-xl p-4">
             <p className="text-xs text-sky-400 font-medium mb-1">Cargo loaded ✓</p>
             <p className="text-xs text-gray-500">
-              When you're ready to drive to the destination, tap the button below.
+              When you&apos;re ready to drive to the destination, tap the button below.
               GPS tracking will begin and record your route for distance and cost calculation.
             </p>
           </div>
