@@ -8,6 +8,7 @@ const allNavItems = [
   { href: '/requests', label: 'Requests', icon: '◧', roles: ['ADMIN', 'COORDINATOR', 'DEPT_USER'] },
   { href: '/trips', label: 'Trips', icon: '◈', roles: ['ADMIN', 'COORDINATOR'] },
   { href: '/vehicles', label: 'Vehicles', icon: '⬡', roles: ['ADMIN', 'COORDINATOR'] },
+  { href: '/assistant', label: 'AI Assistant', icon: '✦', roles: ['ADMIN', 'COORDINATOR'] },
   { href: '/admin', label: 'Admin', icon: '◎', roles: ['ADMIN'] },
 ]
 
